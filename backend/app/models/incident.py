@@ -10,6 +10,7 @@ class Incident(Base):
     severity: Mapped[str] = mapped_column(String(4)) # P1|P2|P3
     status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open|ack|inprogress|resolved|closed
     description: Mapped[str] = mapped_column(Text, default="")
+    photo: Mapped[str | None] = mapped_column(Text, nullable=True)
     depot_id: Mapped[int | None] = mapped_column(ForeignKey("depots.id"), nullable=True, index=True)
     vehicle_id: Mapped[int | None] = mapped_column(ForeignKey("vehicles.id"), nullable=True)
     reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

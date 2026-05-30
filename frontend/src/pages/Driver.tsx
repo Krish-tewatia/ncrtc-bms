@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, getMe } from "../lib/api";
 
 type Duty = { id:number; date:string; vehicle_id:number; route_id:number; acknowledged:boolean };
-type N = { id:number; title:string; body:string; publish_at:string };
+type N = { id:number; title:string; body:string; publish_at:string; ack_required:boolean };
 
 export default function Driver() {
   const me = getMe()!;
@@ -37,10 +37,15 @@ export default function Driver() {
       <div className="card">
         <h3 style={{marginTop:0}}>Unread notices</h3>
         {feed.data?.length ? feed.data.map(n=>(
-          <div key={n.id} style={{borderBottom:"1px solid #2a3556",padding:".5rem 0"}}>
-            <strong>{n.title}</strong>
+          <div key={n.id} style={{borderBottom:"1px solid #2a3556",padding:".5rem 0", background: n.ack_required ? "rgba(239, 71, 111, 0.1)" : "transparent"}}>
+            <div className="row" style={{justifyContent:"space-between"}}>
+              <strong>{n.title}</strong>
+              {n.ack_required && <span className="badge P1">Requires Acknowledgement</span>}
+            </div>
             <p style={{margin:".25rem 0"}}>{n.body}</p>
-            <button className="btn ghost" onClick={()=>read.mutate(n.id)}>Mark as read</button>
+            <button className={n.ack_required ? "btn" : "btn ghost"} onClick={()=>read.mutate(n.id)}>
+              {n.ack_required ? "Acknowledge" : "Mark as read"}
+            </button>
           </div>
         )) : <p className="muted">All caught up.</p>}
       </div>

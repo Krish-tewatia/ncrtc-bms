@@ -52,10 +52,18 @@ class LiveVehicle(BaseModel):
     vehicle_id: int; reg_no: str; depot_id: int
     lat: float; lng: float; speed_kmh: float; ts: datetime
 
+class LiveVehicleDetail(BaseModel):
+    vehicle_id: int
+    reg_no: str
+    driver_name: Optional[str]
+    route_name: Optional[str]
+    recent_pings: list[PingOut]
+
 # incident
 class IncidentIn(BaseModel):
     type: str; severity: str; description: str = ""
     depot_id: Optional[int] = None; vehicle_id: Optional[int] = None
+    photo: Optional[str] = None
 
 class IncidentEventOut(ORM):
     id: int; ts: datetime; actor_id: int
@@ -63,6 +71,7 @@ class IncidentEventOut(ORM):
 
 class IncidentOut(ORM):
     id: int; type: str; severity: str; status: str; description: str
+    photo: Optional[str] = None
     depot_id: Optional[int]; vehicle_id: Optional[int]
     reporter_id: int; assignee_id: Optional[int]; created_at: datetime
     events: list[IncidentEventOut] = []
@@ -75,8 +84,10 @@ class IncidentUpdate(BaseModel):
 # notice
 class NoticeIn(BaseModel):
     title: str; body: str; audience: dict[str, Any]
+    ack_required: bool = False
     publish_at: Optional[datetime] = None
 
 class NoticeOut(ORM):
     id: int; title: str; body: str; audience: dict
+    ack_required: bool
     publish_at: datetime; created_by: int

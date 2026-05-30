@@ -10,12 +10,19 @@ export default function RoutesAdmin() {
   const qc = useQueryClient();
   const routes = useQuery<R[]>({queryKey:["routes"], queryFn:()=>api("/api/routes")});
   const depots = useQuery<D[]>({queryKey:["depots"], queryFn:()=>api("/api/depots")});
+  const [editingId, setEditingId] = useState<number|null>(null);
   const [name,setName] = useState(""); const [depotId,setDepotId] = useState<number|"">("");
   const [stops,setStops] = useState<Stop[]>([{seq:1,name:"Stop 1",lat:28.6,lng:77.3,planned_time:"07:00"}]);
 
+  const reset = () => { setEditingId(null); setName(""); setDepotId(""); setStops([{seq:1,name:"Stop 1",lat:28.6,lng:77.3,planned_time:"07:00"}]); };
+
   const create = useMutation({
     mutationFn:(body:any)=> api("/api/routes",{method:"POST",body:JSON.stringify(body)}),
-    onSuccess:()=>{ qc.invalidateQueries({queryKey:["routes"]}); setName(""); setStops([{seq:1,name:"Stop 1",lat:28.6,lng:77.3,planned_time:"07:00"}]); }
+    onSuccess:()=>{ qc.invalidateQueries({queryKey:["routes"]}); reset(); }
+  });
+  const update = useMutation({
+    mutationFn:(body:any)=> api(`/api/routes/${editingId}`,{method:"PUT",body:JSON.stringify(body)}),
+    onSuccess:()=>{ qc.invalidateQueries({queryKey:["routes"]}); reset(); }
   });
   const del = useMutation({
     mutationFn:(id:number)=>api(`/api/routes/${id}`,{method:"DELETE"}),
@@ -25,7 +32,7 @@ export default function RoutesAdmin() {
   return (
     <div className="grid" style={{gridTemplateColumns:"1fr 1fr"}}>
       <div className="card">
-        <h3 style={{marginTop:0}}>Create route</h3>
+        <h3 style={{marginTop:0}}>{editingId ? "Edit route" : "Create route"}</h3>
         <label>Name</label><input value={name} onChange={e=>setName(e.target.value)} />
         <label>Depot</label>
         <select value={depotId} onChange={e=>setDepotId(Number(e.target.value))}>
@@ -49,8 +56,12 @@ export default function RoutesAdmin() {
           </tbody>
         </table>
         <button className="btn ghost" style={{marginTop:".5rem"}} onClick={()=>setStops([...stops,{seq:stops.length+1,name:`Stop ${stops.length+1}`,lat:28.6,lng:77.3,planned_time:"07:30"}])}>+ Add stop</button>
-        <div style={{marginTop:".75rem"}}>
-          <button className="btn" disabled={!name||!depotId||stops.length<2} onClick={()=>create.mutate({name,depot_id:depotId,stops})}>Create route</button>
+        <div style={{marginTop:".75rem", display:"flex", gap:".5rem"}}>
+          <button className="btn" disabled={!name||!depotId||stops.length<2} onClick={()=>{
+            if (editingId) update.mutate({name,depot_id:depotId,stops});
+            else create.mutate({name,depot_id:depotId,stops});
+          }}>{editingId ? "Save changes" : "Create route"}</button>
+          {editingId && <button className="btn ghost" onClick={reset}>Cancel</button>}
         </div>
       </div>
 
@@ -64,7 +75,15 @@ export default function RoutesAdmin() {
                 <td>{r.name}</td>
                 <td>{depots.data?.find(d=>d.id===r.depot_id)?.name}</td>
                 <td>{r.stops.length}</td>
-                <td><button className="btn danger" onClick={()=>del.mutate(r.id)}>Delete</button></td>
+                <td>
+                  <div className="row">
+                    <button className="btn ghost" style={{padding:".2rem .5rem"}} onClick={()=>{
+                      setEditingId(r.id); setName(r.name); setDepotId(r.depot_id);
+                      setStops(r.stops.map(s=>({seq:s.seq,name:s.name,lat:s.lat,lng:s.lng,planned_time:s.planned_time})));
+                    }}>Edit</button>
+                    <button className="btn danger" style={{padding:".2rem .5rem"}} onClick={()=>del.mutate(r.id)}>Delete</button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

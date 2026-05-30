@@ -10,6 +10,7 @@ class Notice(Base):
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text)
     audience: Mapped[dict] = mapped_column(JSONB)  # {"role":"driver"} or {"depot_id":1} or {"all":true}
+    ack_required: Mapped[bool] = mapped_column(default=False)
     publish_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
 

@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, getMe } from "../lib/api";
 
-type N = { id:number; title:string; body:string; audience:any; publish_at:string; created_by:number };
+type N = { id:number; title:string; body:string; audience:any; publish_at:string; created_by:number; ack_required:boolean };
 
 export default function Notices() {
   const me = getMe()!;
   const qc = useQueryClient();
   const list = useQuery<N[]>({queryKey:["notices"], queryFn:()=>api("/api/notices")});
-  const [n,setN] = useState({title:"",body:"",audience:"all"});
+  const [n,setN] = useState({title:"",body:"",audience:"all", ack_required:false});
   const [openId,setOpenId] = useState<number|null>(null);
   const reads = useQuery<any[]>({
     enabled: openId !== null, queryKey:["reads",openId],
@@ -16,7 +16,7 @@ export default function Notices() {
   });
   const create = useMutation({
     mutationFn:(b:any)=>api("/api/notices",{method:"POST",body:JSON.stringify(b)}),
-    onSuccess:()=>{ qc.invalidateQueries({queryKey:["notices"]}); setN({title:"",body:"",audience:"all"}); }
+    onSuccess:()=>{ qc.invalidateQueries({queryKey:["notices"]}); setN({title:"",body:"",audience:"all", ack_required:false}); }
   });
 
   const aud = (a:any) => a.all? "All" : a.role? `Role: ${a.role}` : a.depot_id? `Depot ${a.depot_id}` : JSON.stringify(a);
@@ -62,8 +62,11 @@ export default function Notices() {
             <option value="driver">All drivers</option>
             <option value="manager">All managers</option>
           </select>
+          <label style={{margin:".5rem 0",display:"flex",alignItems:"center",gap:".25rem"}}>
+            <input type="checkbox" checked={n.ack_required} onChange={e=>setN({...n,ack_required:e.target.checked})} style={{width:"auto"}}/> Require explicit acknowledgement
+          </label>
           <button className="btn" style={{marginTop:".5rem"}} disabled={!n.title||!n.body}
-            onClick={()=>create.mutate({title:n.title, body:n.body,
+            onClick={()=>create.mutate({title:n.title, body:n.body, ack_required:n.ack_required,
               audience: n.audience==="all"?{all:true}:{role:n.audience}})}>Publish</button>
         </div>
       )}

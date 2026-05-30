@@ -42,6 +42,10 @@ export default function Roster() {
     mutationFn:()=> api(`/api/duties/publish?start=${weekStart}&end=${end}${depotId?`&depot_id=${depotId}`:""}`, {method:"POST"}),
     onSuccess:()=> qc.invalidateQueries({queryKey:["duties"]}),
   });
+  const copyLastWeek = useMutation({
+    mutationFn:()=> api(`/api/duties/copy?target_week_start=${weekStart}${depotId?`&depot_id=${depotId}`:""}`, {method:"POST"}),
+    onSuccess:(data:any)=> { alert(`Copied ${data.copied} duties!`); qc.invalidateQueries({queryKey:["duties"]}); }
+  });
 
   const [form,setForm] = useState<{date:string; driver_id:number}|null>(null);
   const [vehId,setVehId] = useState<number|"">(""); const [routeId,setRouteId] = useState<number|"">("");
@@ -55,6 +59,7 @@ export default function Roster() {
         </div>
         <div className="row">
           <input type="date" value={weekStart} onChange={e=>setWeekStart(e.target.value)} />
+          <button className="btn ghost" onClick={()=>copyLastWeek.mutate()}>Copy last week</button>
           <button className="btn" onClick={()=>publish.mutate()}>Publish week</button>
         </div>
       </div>

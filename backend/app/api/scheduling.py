@@ -1,4 +1,4 @@
-from datetime import date as _date
+from datetime import date as _date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
@@ -26,6 +26,17 @@ def delete_route(rid: int, db: Session = Depends(get_db),
     if not rt: raise HTTPException(404)
     db.delete(rt); db.commit(); return {"ok": True}
 
+@router.put("/routes/{rid}", response_model=RouteOut)
+def update_route(rid: int, body: RouteIn, db: Session = Depends(get_db),
+                 _: User = Depends(require_roles("admin"))):
+    rt = db.get(Route, rid)
+    if not rt: raise HTTPException(404)
+    rt.name = body.name
+    rt.depot_id = body.depot_id
+    db.query(RouteStop).filter(RouteStop.route_id == rid).delete()
+    rt.stops = [RouteStop(**s.model_dump()) for s in body.stops]
+    db.commit(); db.refresh(rt); return rt
+
 @router.get("/duties", response_model=list[DutyOut])
 def list_duties(start: _date, end: _date, depot_id: int | None = None,
                 db: Session = Depends(get_db), _: User = Depends(current_user)):
@@ -36,6 +47,14 @@ def list_duties(start: _date, end: _date, depot_id: int | None = None,
 @router.post("/duties", response_model=DutyOut)
 def upsert_duty(body: DutyIn, db: Session = Depends(get_db),
                 _: User = Depends(require_roles("admin", "manager"))):
+    existing_driver_duty = db.query(Duty).filter(
+        Duty.date == body.date,
+        Duty.driver_id == body.driver_id,
+        Duty.vehicle_id != body.vehicle_id
+    ).first()
+    if existing_driver_duty:
+        raise HTTPException(400, detail="Driver is already assigned to a different duty on this date.")
+
     d = (db.query(Duty).filter(Duty.date == body.date,
                                Duty.vehicle_id == body.vehicle_id).first())
     if d:
@@ -53,6 +72,26 @@ def publish(start: _date, end: _date, depot_id: int | None = None,
     count = q.update({"published": True}, synchronize_session=False)
     db.commit()
     return {"published": count}
+
+@router.post("/duties/copy")
+def copy_duties(target_week_start: _date, depot_id: int | None = None,
+                db: Session = Depends(get_db), _: User = Depends(require_roles("admin", "manager"))):
+    src_start = target_week_start - timedelta(days=7)
+    src_end = target_week_start - timedelta(days=1)
+    q = db.query(Duty).filter(Duty.date >= src_start, Duty.date <= src_end)
+    if depot_id: q = q.filter(Duty.depot_id == depot_id)
+    old_duties = q.all()
+    count = 0
+    for od in old_duties:
+        new_date = od.date + timedelta(days=7)
+        if not db.query(Duty).filter(Duty.date == new_date, Duty.driver_id == od.driver_id).first() and \
+           not db.query(Duty).filter(Duty.date == new_date, Duty.vehicle_id == od.vehicle_id).first():
+            db.add(Duty(date=new_date, driver_id=od.driver_id, vehicle_id=od.vehicle_id,
+                        route_id=od.route_id, depot_id=od.depot_id,
+                        published=False, acknowledged=False))
+            count += 1
+    db.commit()
+    return {"copied": count}
 
 @router.get("/duties/mine", response_model=list[DutyOut])
 def my_duties(db: Session = Depends(get_db), me: User = Depends(current_user)):

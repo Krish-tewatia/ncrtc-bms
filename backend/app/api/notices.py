@@ -24,6 +24,7 @@ def list_notices(db: Session = Depends(get_db), _: User = Depends(current_user))
 def create(body: NoticeIn, db: Session = Depends(get_db),
            me: User = Depends(require_roles("admin"))):
     n = Notice(title=body.title, body=body.body, audience=body.audience,
+               ack_required=body.ack_required,
                publish_at=body.publish_at or datetime.utcnow(), created_by=me.id)
     db.add(n); db.commit(); db.refresh(n); return n
 

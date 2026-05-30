@@ -10,11 +10,14 @@ router = APIRouter(prefix="/api/incidents", tags=["incidents"])
 ALLOWED = {"open", "ack", "inprogress", "resolved", "closed"}
 
 @router.get("", response_model=list[IncidentOut])
-def list_incidents(status: str | None = None, depot_id: int | None = None,
-                   db: Session = Depends(get_db), _: User = Depends(current_user)):
+def list_incidents(status: str | None = None, severity: str | None = None,
+                   depot_id: int | None = None, mine_only: bool = False,
+                   db: Session = Depends(get_db), me: User = Depends(current_user)):
     q = db.query(Incident)
     if status: q = q.filter(Incident.status == status)
+    if severity: q = q.filter(Incident.severity == severity)
     if depot_id: q = q.filter(Incident.depot_id == depot_id)
+    if mine_only: q = q.filter(Incident.reporter_id == me.id)
     return q.order_by(Incident.created_at.desc()).limit(200).all()
 
 @router.post("", response_model=IncidentOut)
