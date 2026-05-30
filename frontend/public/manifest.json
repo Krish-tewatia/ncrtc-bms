@@ -1,0 +1,9 @@
+{
+  "name": "NCRTC BMS",
+  "short_name": "NCRTC",
+  "start_url": "/driver",
+  "display": "standalone",
+  "background_color": "#0b132b",
+  "theme_color": "#0b132b",
+  "icons": []
+}

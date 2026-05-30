@@ -1,0 +1,57 @@
+import { useState } from "react";
+import { MapContainer, TileLayer, Polyline, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
+
+const icon = L.icon({ iconUrl:"https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png", iconSize:[25,41], iconAnchor:[12,41]});
+
+type V = { id:number; reg_no:string };
+type P = { ts:string; lat:number; lng:number; speed_kmh:number };
+
+function Fit({ path }:{ path:[number,number][] }) {
+  const map = useMap();
+  if (path.length) setTimeout(()=>map.fitBounds(path as any,{padding:[30,30]}),50);
+  return null;
+}
+
+export default function History() {
+  const vehicles = useQuery<V[]>({queryKey:["vehicles"], queryFn:()=>api("/api/vehicles")});
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  const [vid,setVid] = useState<number|"">("");
+  const [day,setDay] = useState<string>(yesterday);
+  const hist = useQuery<P[]>({
+    enabled: !!vid, queryKey:["hist",vid,day],
+    queryFn:()=>api(`/api/avls/history/${vid}?day=${day}`),
+  });
+  const path = (hist.data||[]).map(p=>[p.lat,p.lng] as [number,number]);
+  return (
+    <div>
+      <div className="card row" style={{gap:"1rem"}}>
+        <div style={{flex:1}}>
+          <label>Vehicle</label>
+          <select value={vid} onChange={e=>setVid(e.target.value? Number(e.target.value):"")}>
+            <option value="">-- pick a vehicle --</option>
+            {vehicles.data?.map(v=> <option key={v.id} value={v.id}>{v.reg_no}</option>)}
+          </select>
+        </div>
+        <div style={{flex:1}}>
+          <label>Date</label>
+          <input type="date" value={day} onChange={e=>setDay(e.target.value)} />
+        </div>
+        <div className="muted" style={{alignSelf:"end"}}>{hist.data?.length ?? 0} pings</div>
+      </div>
+      <div className="map-wrap">
+        <MapContainer center={[28.6,77.3]} zoom={11} style={{height:"100%",width:"100%"}}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {path.length>0 && <>
+            <Polyline positions={path} pathOptions={{color:"#5bc0be", weight:4}} />
+            <Marker position={path[0]} icon={icon} />
+            <Marker position={path[path.length-1]} icon={icon} />
+            <Fit path={path}/>
+          </>}
+        </MapContainer>
+      </div>
+    </div>
+  );
+}
